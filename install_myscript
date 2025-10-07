@@ -1,0 +1,44 @@
+
+#!/usr/bin/env bash
+set -e
+
+SERVICE_NAME="myscript"
+SCRIPT_PATH="/opt/process_monitoring/myscript"
+SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+CRON_FILE="/etc/cron.d/${SERVICE_NAME}"
+
+
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  echo "ошибка: не найден скрипт $SCRIPT_PATH"
+  exit 1
+fi
+
+chmod +x "$SCRIPT_PATH"
+
+touch /opt/process_monitoring/last_restart
+mkdir -p /etc/systemd/system
+mkdir -p /etc/cron.d
+
+cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=Run ${SERVICE_NAME} at boot
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=${SCRIPT_PATH}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable "${SERVICE_NAME}.service"
+
+cat > "$CRON_FILE" <<EOF
+* * * * * root ${SCRIPT_PATH} >/dev/null 2>&1
+EOF
+
+chmod 644 "$CRON_FILE"
+
+systemctl start "${SERVICE_NAME}.service"

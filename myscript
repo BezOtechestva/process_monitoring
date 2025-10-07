@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+PROC_NAME="test"
+STATE_FILE="/opt/process_monitoring/last_restart"
+LOG_FILE="/var/log/monitoring.log"
+API_URL="https://test.com/monitoring/test/api"
+
+pid=$(/usr/bin/pgrep -o -x "$PROC_NAME" 2>/dev/null || true)
+[[ -z "$pid" ]] && exit 0
+
+current_start=$(ps -p "$pid" -o lstart= | tr -s ' ')
+last_start=$(cat "$STATE_FILE")
+
+if [[ "$current_start" != "$last_start" ]]; then
+  echo "Процесс $PROC_NAME был перезапущен в $last_start" >> "$LOG_FILE"
+  echo "$current_start" > "$STATE_FILE"
+fi
+
+if ! /usr/bin/curl -s -X POST "$API_URL" >/dev/null 2>&1; then
+  echo "Ошибка при запросе к $API_URL" >> "$LOG_FILE"
+fi
